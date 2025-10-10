@@ -1,0 +1,23 @@
+name: $(Build.SourceBranchName)-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - '*'
+
+variables:
+  - group: resourceManagement
+
+resources:
+  repositories:
+    - repository: deploy
+      type: github
+      name: TombSte/ResourceManagement-Deploy
+      ref: refs/heads/main
+      endpoint: github-pipelines
+
+extends:
+  template: Pipelines/Templates/docker-build-and-publish.yml@deploy
+  parameters:
+    poolName: GraveHousePool
+    useBranchInTag: false
