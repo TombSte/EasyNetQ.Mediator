@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using EasyNetQ.Mediator.Consumer.Implementations;
 using EasyNetQ.Mediator.Consumer.Options;
 using EasyNetQ.Mediator.Factories;
@@ -15,8 +18,8 @@ public class PublishSubscribeIntegrationTest(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task ShouldSendAndReceiveAMessage()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // -> tieni la source
-        var ct = cts.Token;
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var listenerCts = new CancellationTokenSource();
 
         var queueName = "test-integration-update-person-exchange";
         
@@ -45,32 +48,39 @@ public class PublishSubscribeIntegrationTest(IntegrationTestFixture fixture) : I
         var received = new TaskCompletionSource<UpdatePerson>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // 1) Attiva il consumer PRIMA
-        await subscriber.ConsumeAsync(x =>
+        var consuming = subscriber.ConsumeAsync(x =>
         {
             received.TrySetResult(x);
             return Task.CompletedTask;
-        });
+        }, listenerCts.Token);
 
-        // 2) Poi pubblica
-        var expected = new UpdatePerson("John" + Guid.NewGuid(), "Doe");
-        await sender.PublishAsync(expected);
+        try
+        {
+            // 2) Poi pubblica
+            var expected = new UpdatePerson("John" + Guid.NewGuid(), "Doe");
+            await sender.PublishAsync(expected);
 
-        // 3) Attendi il messaggio o timeout
-        var actual = await Task.WhenAny(received.Task, Task.Delay(Timeout.Infinite, ct)) == received.Task
-            ? await received.Task
-            : throw new TimeoutException("Messaggio non ricevuto entro 30s");
+            // 3) Attendi il messaggio o timeout
+            var actual = await Task.WhenAny(
+                received.Task,
+                Task.Delay(Timeout.Infinite, timeoutCts.Token)) == received.Task
+                ? await received.Task
+                : throw new TimeoutException("Messaggio non ricevuto entro 30s");
 
-        actual.Should().BeEquivalentTo(expected);
+            actual.Should().BeEquivalentTo(expected);
+        }
+        finally
+        {
+            listenerCts.Cancel();
+        }
 
-        // opzionale: cancella per chiudere eventuali attese
-        await cts.CancelAsync();
+        await consuming;
     }
     
     [Fact]
     public async Task ShouldSendAndReceiveAMessage_MultipleSubscribers()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // -> tieni la source
-        var ct = cts.Token;
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         
         var queueName = "test-integration-update-person-exchange-multiple";
 
@@ -109,8 +119,8 @@ public class PublishSubscribeIntegrationTest(IntegrationTestFixture fixture) : I
 
         var expected = new UpdatePerson("John" + Guid.NewGuid(), "Doe");
         
-        var ts1 = CheckSubscriber(subscriber1, ct, cts, expected);
-        var ts2 = CheckSubscriber(subscriber2, ct, cts, expected);
+        var ts1 = CheckSubscriber(subscriber1, timeoutCts.Token, expected);
+        var ts2 = CheckSubscriber(subscriber2, timeoutCts.Token, expected);
         
         var tp =  sender.PublishAsync(expected);
 
@@ -119,24 +129,33 @@ public class PublishSubscribeIntegrationTest(IntegrationTestFixture fixture) : I
 
     private static async Task CheckSubscriber(
         MessageSubscriber<UpdatePerson> subscriber,
-        CancellationToken ct,
-        CancellationTokenSource cts,
-        object expected)
+        CancellationToken timeoutToken,
+        UpdatePerson expected)
     {
         var received = new TaskCompletionSource<UpdatePerson>(TaskCreationOptions.RunContinuationsAsynchronously);
-        
-        await subscriber.ConsumeAsync(x =>
+        using var listenerCts = new CancellationTokenSource();
+
+        var consuming = subscriber.ConsumeAsync(x =>
         {
             received.TrySetResult(x);
             return Task.CompletedTask;
-        });
-        
-        var actual = await Task.WhenAny(received.Task, Task.Delay(Timeout.Infinite, ct)) == received.Task
-            ? await received.Task
-            : throw new TimeoutException("Messaggio non ricevuto entro 30s");
+        }, listenerCts.Token);
 
-        actual.Should().BeEquivalentTo(expected);
+        try
+        {
+            var actual = await Task.WhenAny(
+                received.Task,
+                Task.Delay(Timeout.Infinite, timeoutToken)) == received.Task
+                ? await received.Task
+                : throw new TimeoutException("Messaggio non ricevuto entro 30s");
 
-        await cts.CancelAsync();
+            actual.Should().BeEquivalentTo(expected);
+        }
+        finally
+        {
+            listenerCts.Cancel();
+        }
+
+        await consuming;
     }
 }

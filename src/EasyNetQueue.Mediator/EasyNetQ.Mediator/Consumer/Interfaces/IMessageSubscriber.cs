@@ -1,3 +1,4 @@
+using System.Threading;
 using EasyNetQ.Mediator.Message;
 
 namespace EasyNetQ.Mediator.Consumer.Interfaces;
@@ -5,5 +6,5 @@ namespace EasyNetQ.Mediator.Consumer.Interfaces;
 public interface IMessageSubscriber<T> where T : BaseMessage
 {
     public delegate Task OnConsume(T message);
-    public Task ConsumeAsync(OnConsume onConsume);
+    public Task ConsumeAsync(OnConsume onConsume, CancellationToken cancellationToken = default);
 }

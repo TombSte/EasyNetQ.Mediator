@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using EasyNetQ;
 using EasyNetQ.Mediator.Consumer.Implementations;
@@ -17,7 +18,7 @@ public class RabbitMediatorExecutorLauncher(ReceiverRegistrationBuilder builder,
 {
     private const string ExecuteMethodName = "Execute";
 
-    public Task Run()
+    public Task Run(CancellationToken cancellationToken = default)
     {
         if (builder.Registrations.Count == 0)
         {
@@ -55,13 +56,19 @@ public class RabbitMediatorExecutorLauncher(ReceiverRegistrationBuilder builder,
                 var mapper = scopedProvider.GetRequiredService<IMessageMapper>();
 
                 var executorType = typeof(ReceiverExecutor<,>).MakeGenericType(messageType, commandType);
-                var executor = Activator.CreateInstance(executorType, messageReceiver, sender, mapper, scopedProvider)
+                var scopeFactory = scopedProvider.GetRequiredService<IServiceScopeFactory>();
+                var executor = Activator.CreateInstance(executorType, messageReceiver, sender, mapper, scopeFactory)
                                ?? throw new InvalidOperationException($"Unable to create receiver executor for message {messageType.Name} and command {commandType.Name}.");
 
-                var executeMethod = executorType.GetMethod(ExecuteMethodName, BindingFlags.Instance | BindingFlags.Public)
+                var executeMethod = executorType.GetMethod(
+                                        ExecuteMethodName,
+                                        BindingFlags.Instance | BindingFlags.Public,
+                                        binder: null,
+                                        types: new[] { typeof(CancellationToken) },
+                                        modifiers: null)
                                     ?? throw new InvalidOperationException($"Execute method not found on executor for message {messageType.Name} and command {commandType.Name}.");
 
-                var executeTask = executeMethod.Invoke(executor, null) as Task
+                var executeTask = executeMethod.Invoke(executor, new object[] { cancellationToken }) as Task
                                   ?? throw new InvalidOperationException("Receiver executor Execute must return a Task.");
 
                 var trackedTask = executeTask
