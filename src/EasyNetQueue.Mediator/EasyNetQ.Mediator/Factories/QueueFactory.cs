@@ -2,28 +2,25 @@ using EasyNetQ.Mediator.Message;
 
 namespace EasyNetQ.Mediator.Factories;
 
-public interface IQueueFactory<T> where T : BaseMessage
+public interface IQueueFactory<T> : IFactory  where T : BaseMessage
 {
-    IQueueFactory<T> Configure(Action<QueueOptions> setOptions);
     IBus Bus { get; }
     IAdvancedBus AdvancedBus { get; }
     QueueOptions Options { get; }
 }
 
-public class QueueFactory<T>(IBus bus) : IQueueFactory<T>
+public class QueueFactory<T> : IQueueFactory<T>
     where T : BaseMessage
 {
-    public IBus Bus { get; } = bus;
-    public IAdvancedBus AdvancedBus { get; } = bus.Advanced;
-
-    public QueueOptions Options { get; private set; } = new()
+    public IBus Bus { get; }
+    public IAdvancedBus AdvancedBus { get; }
+    public QueueOptions Options { get; }
+    
+    public QueueFactory(IBus bus, QueueOptions options)
     {
-        QueueName = Helper.DefaultQueueName<T>()
-    };
-
-    public IQueueFactory<T> Configure(Action<QueueOptions> setOptions)
-    {
-        setOptions(Options);
-        return this;
+        Bus = bus;
+        AdvancedBus = bus.Advanced;
+        Options = options;
+        Options.QueueName ??= Helper.DefaultQueueName<T>();
     }
 }

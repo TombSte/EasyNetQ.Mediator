@@ -1,10 +1,10 @@
-using EasyNetQ.Logging;
 using EasyNetQ.Mediator.Consumer.Implementations;
+using EasyNetQ.Mediator.Consumer.Options;
 using EasyNetQ.Mediator.Factories;
 using EasyNetQ.Mediator.Message;
 using EasyNetQ.Mediator.Sender.Implementations;
+using EasyNetQ.Mediator.Sender.Options;
 using FluentAssertions;
-using NSubstitute;
 
 namespace EasyNetQ.Mediator.Test.Integrations;
 
@@ -19,22 +19,25 @@ public class PublishSubscribeIntegrationTest(IntegrationTestFixture fixture) : I
         var ct = cts.Token;
 
         var queueName = "test-integration-update-person-exchange";
-        var publisherFactory = new ExchangeFactory<UpdatePerson>(fixture.Bus);
-        publisherFactory.Configure(options =>
+        
+        var exchangeOptions = new ExchangeOptions()
         {
-            options.AutoDelete = true;
-            options.QueueName = queueName;
-            options.Durable = false;
-        });
+            AutoDelete = true,
+            QueueName = queueName,
+            Durable = false,
+        };
+        
+        var publisherFactory = new ExchangeFactory<UpdatePerson>(fixture.Bus, exchangeOptions);
 
-        var subscriberFactory = new SubscriberFactory<UpdatePerson>(fixture.Bus);
-        subscriberFactory.Configure(options =>
+        SubscriberOptions optionsSub1 = new SubscriberOptions()
         {
-            options.AutoDelete = true;
-            options.SubQueueName = queueName + "-sub1";
-            options.QueueName = queueName;
-            options.Durable = false;
-        });
+            AutoDelete = true,
+            SubQueueName = queueName + "-sub1",
+            QueueName = queueName,
+            Durable = false,
+        };
+        
+        var subscriberFactory = new SubscriberFactory<UpdatePerson>(fixture.Bus, optionsSub1);
 
         var sender = new MessagePublisher<UpdatePerson>(publisherFactory);
         var subscriber = new MessageSubscriber<UpdatePerson>(subscriberFactory);
@@ -68,33 +71,37 @@ public class PublishSubscribeIntegrationTest(IntegrationTestFixture fixture) : I
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // -> tieni la source
         var ct = cts.Token;
-
-        var queueName = "test-integration-update-person-exchange-multiple";
-        var publisherFactory = new ExchangeFactory<UpdatePerson>(fixture.Bus);
-        publisherFactory.Configure(options =>
-        {
-            options.AutoDelete = true;
-            options.QueueName = queueName;
-            options.Durable = false;
-        });
-
-        var subscriberFactory1 = new SubscriberFactory<UpdatePerson>(fixture.Bus);
-        subscriberFactory1.Configure(options =>
-        {
-            options.AutoDelete = true;
-            options.SubQueueName = queueName + "-sub1";
-            options.QueueName = queueName;
-            options.Durable = false;
-        });
         
-        var subscriberFactory2 = new SubscriberFactory<UpdatePerson>(fixture.Bus);
-        subscriberFactory2.Configure(options =>
+        var queueName = "test-integration-update-person-exchange-multiple";
+
+        var exchangeOptions = new ExchangeOptions()
         {
-            options.AutoDelete = true;
-            options.SubQueueName = queueName + "-sub2";
-            options.QueueName = queueName;
-            options.Durable = false;
-        });
+            AutoDelete = true,
+            QueueName = queueName,
+            Durable = false,
+        };
+        
+        var publisherFactory = new ExchangeFactory<UpdatePerson>(fixture.Bus, exchangeOptions);
+
+        SubscriberOptions optionsSub1 = new SubscriberOptions()
+        {
+            AutoDelete = true,
+            SubQueueName = queueName + "-sub1",
+            QueueName = queueName,
+            Durable = false,
+        };
+        
+        var subscriberFactory1 = new SubscriberFactory<UpdatePerson>(fixture.Bus, optionsSub1);
+        
+        SubscriberOptions optionsSub2 = new SubscriberOptions()
+        {
+            AutoDelete = true,
+            SubQueueName = queueName + "-sub2",
+            QueueName = queueName,
+            Durable = false,
+        };
+        
+        var subscriberFactory2 = new SubscriberFactory<UpdatePerson>(fixture.Bus, optionsSub2);
 
         var sender = new MessagePublisher<UpdatePerson>(publisherFactory);
         var subscriber1 = new MessageSubscriber<UpdatePerson>(subscriberFactory1);

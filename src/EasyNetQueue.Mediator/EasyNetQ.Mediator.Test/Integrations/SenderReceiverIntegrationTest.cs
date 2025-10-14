@@ -10,20 +10,21 @@ namespace EasyNetQ.Mediator.Test.Integrations;
 
 public record NewPerson(string FirstName, string LastName) : BaseMessage;
 
-
 public class SenderReceiverIntegrationTest(IntegrationTestFixture fixture) : IClassFixture<IntegrationTestFixture>
 {
     [Fact]
     public void Should_be_able_to_send_a_message()
     {
-        var factory = new QueueFactory<NewPerson>(fixture.Bus);
-        var queueName = "test-integration-send-new-person";
         
-        factory.Configure(options =>
+        var queueName = "test-integration-send-new-person";
+        var options = new QueueOptions()
         {
-            options.AutoDelete = true;
-            options.QueueName = queueName;
-        });
+            AutoDelete = true,
+            QueueName = queueName,
+            Durable = false
+        };
+        
+        var factory = new QueueFactory<NewPerson>(fixture.Bus, options);
         
         var messageSender = new MessageSender<NewPerson>(factory);
         
@@ -37,14 +38,15 @@ public class SenderReceiverIntegrationTest(IntegrationTestFixture fixture) : ICl
     public async Task ShouldSendAndReceiveAMessage()
     {
         var queueName = "test-integration-new-person";
-        var factory = new QueueFactory<NewPerson>(fixture.Bus);
-        
-        factory.Configure(options =>
+        var options = new QueueOptions()
         {
-            options.AutoDelete = true;
-            options.QueueName = queueName;
-            options.Durable = false;
-        });
+            AutoDelete = true,
+            QueueName = queueName,
+            Durable = false
+        };
+        var factory = new QueueFactory<NewPerson>(fixture.Bus, options);
+
+        
         
         var messageSender = new MessageSender<NewPerson>(factory);
         var messageReceiver = new MessageReceiver<NewPerson>(factory, Substitute.For<ILogger<MessageReceiver<NewPerson>>>());
@@ -53,7 +55,7 @@ public class SenderReceiverIntegrationTest(IntegrationTestFixture fixture) : ICl
 
         await messageSender.SendAsync(p);
 
-        await messageReceiver.ReceiveAsync(x =>
+        await messageReceiver.ReceiveAsync(async x =>
         {
             x.Should().BeEquivalentTo(p);
         });

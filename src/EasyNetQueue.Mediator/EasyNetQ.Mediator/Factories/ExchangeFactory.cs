@@ -3,28 +3,26 @@ using EasyNetQ.Mediator.Sender.Options;
 
 namespace EasyNetQ.Mediator.Factories;
 
-public interface IExchangeFactory<T> where T : BaseMessage
+public interface IExchangeFactory<T> : IFactory where T : BaseMessage
 {
-    ExchangeFactory<T> Configure(Action<ExchangeOptions> setOptions);
     public ExchangeOptions Options { get; } 
     public IBus Bus { get; }
     public IAdvancedBus AdvancedBus { get; }
 }
 
-public class ExchangeFactory<T>(IBus bus) : IExchangeFactory<T>
+public class ExchangeFactory<T> : IExchangeFactory<T>
     where T : BaseMessage
 {
-    public IBus Bus { get; } = bus;
-    public IAdvancedBus AdvancedBus { get; } = bus.Advanced;
+    public IBus Bus { get; }
 
-    public ExchangeOptions Options { get; private set; } = new()
-    {
-        QueueName = Helper.DefaultExchangeName<T>()
-    };
+    public IAdvancedBus AdvancedBus => Bus.Advanced;
 
-    public ExchangeFactory<T> Configure(Action<ExchangeOptions> setOptions)
+    public ExchangeFactory(IBus bus, ExchangeOptions options)
     {
-        setOptions(Options);
-        return this;
+        Bus = bus;
+        Options = options;
+        options.QueueName ??= Helper.DefaultExchangeName<T>();
     }
+
+    public ExchangeOptions Options { get; private set; }
 }
