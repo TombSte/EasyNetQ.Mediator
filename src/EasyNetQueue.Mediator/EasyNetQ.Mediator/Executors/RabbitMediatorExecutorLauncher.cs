@@ -5,7 +5,6 @@ using EasyNetQ;
 using EasyNetQ.Mediator.Consumer.Implementations;
 using EasyNetQ.Mediator.Factories;
 using EasyNetQ.Mediator.Mapping;
-using EasyNetQ.Mediator.Message;
 using EasyNetQ.Mediator.Registrations;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
