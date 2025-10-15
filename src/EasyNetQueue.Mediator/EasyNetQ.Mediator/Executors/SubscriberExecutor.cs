@@ -1,5 +1,3 @@
-using System;
-using System.Threading;
 using EasyNetQ.Mediator.Consumer.Interfaces;
 using EasyNetQ.Mediator.Mapping;
 using EasyNetQ.Mediator.Message;
@@ -7,14 +5,14 @@ using MediatR;
 
 namespace EasyNetQ.Mediator.Executors;
 
-public class ReceiverExecutor<TMessage, TCommand>(
-    IMessageReceiver<TMessage> receiver,
+public class SubcriberExecutor<TMessage, TCommand>(
+    IMessageSubscriber<TMessage> receiver,
     ISender sender,
     IMessageMapper mapper) where TMessage : BaseMessage
 {
     public Task Execute(CancellationToken cancellationToken)
     {
-        return receiver.ReceiveAsync(async message =>
+        return receiver.ConsumeAsync(async message =>
         {
             var command = mapper.Map<TMessage, TCommand>(message);
 

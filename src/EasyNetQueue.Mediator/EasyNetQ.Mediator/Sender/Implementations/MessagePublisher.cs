@@ -9,8 +9,6 @@ namespace EasyNetQ.Mediator.Sender.Implementations;
 public class MessagePublisher<T>(ExchangeFactory<T> factory) : IMessagePublisher<T> where T : BaseMessage
 {
     private IAdvancedBus AdvancedBus => factory.AdvancedBus;
-    private string QueueName => factory.Options.QueueName;
-    
     
     public IMessagePublisher<T> Configure(Action<IExchangeFactory<T>> configure)
     {
