@@ -63,10 +63,11 @@ public class SenderReceiverIntegrationTest(IntegrationTestFixture fixture) : ICl
 
         var received = new TaskCompletionSource<NewPerson>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var consuming = messageReceiver.ReceiveAsync(async x =>
+        var consuming = messageReceiver.ReceiveAsync( x =>
         {
             received.TrySetResult(x);
             x.Should().BeEquivalentTo(p);
+            return Task.CompletedTask;
         }, listenerCts.Token);
 
         await messageSender.SendAsync(p);

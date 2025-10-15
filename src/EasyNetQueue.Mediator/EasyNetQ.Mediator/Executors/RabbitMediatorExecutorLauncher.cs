@@ -17,7 +17,8 @@ namespace EasyNetQ.Mediator.Executors;
 public class RabbitMediatorExecutorLauncher(
     ReceiverRegistrationBuilder receiverBuilder, 
     IServiceProvider serviceProvider,
-    SubscriberRegistrationBuilder subscriberBuilder)
+    SubscriberRegistrationBuilder subscriberBuilder,
+    RpcRegistrationBuilder rpcBuilder)
 {
     private const string ExecuteMethodName = "Execute";
 
@@ -33,6 +34,11 @@ public class RabbitMediatorExecutorLauncher(
         if (subscriberBuilder.Registrations.Count > 0)
         {
             tasks.AddRange(RunSubscribers(cancellationToken));
+        }
+
+        if (rpcBuilder.Registrations.Count > 0)
+        {
+            tasks.AddRange(RunResponders(cancellationToken));
         }
 
         if (tasks.Count == 0)
@@ -156,6 +162,79 @@ public class RabbitMediatorExecutorLauncher(
 
                 var executeTask = executeMethod.Invoke(executor, new object[] { cancellationToken }) as Task
                                   ?? throw new InvalidOperationException("Subscriber executor Execute must return a Task.");
+
+                var trackedTask = executeTask
+                    .ContinueWith(t =>
+                    {
+                        scope.Dispose();
+                        return t;
+                    }, TaskScheduler.Default)
+                    .Unwrap();
+
+                tasks.Add(trackedTask);
+            }
+            catch
+            {
+                scope.Dispose();
+                throw;
+            }
+        }
+
+        return tasks;
+    }
+
+    private List<Task> RunResponders(CancellationToken cancellationToken)
+    {
+        var tasks = new List<Task>(rpcBuilder.Registrations.Count);
+
+        foreach (var rpcRegistration in rpcBuilder.Registrations)
+        {
+            var requestMessageType = rpcRegistration.MessageType
+                                      ?? throw new InvalidOperationException("RPC registration missing MessageType.");
+            var responseMessageType = rpcRegistration.ResponseMessageType
+                                      ?? throw new InvalidOperationException("RPC registration missing ResponseMessageType.");
+            var commandType = rpcRegistration.CommandType
+                               ?? throw new InvalidOperationException("RPC registration missing CommandType.");
+            var commandResultType = rpcRegistration.CommandResultType
+                                    ?? throw new InvalidOperationException("RPC registration missing CommandResultType.");
+
+            rpcRegistration.Options.RequestMessageType ??= requestMessageType;
+            rpcRegistration.Options.ResponseMessageType ??= responseMessageType;
+            rpcRegistration.Options.CommandType ??= commandType;
+            rpcRegistration.Options.CommandResultType ??= commandResultType;
+
+            var scope = serviceProvider.CreateScope();
+            var scopedProvider = scope.ServiceProvider;
+
+            try
+            {
+                var bus = scopedProvider.GetRequiredService<IBus>();
+
+                var rpcFactoryType = typeof(RpcFactory<,>).MakeGenericType(requestMessageType, responseMessageType);
+                var rpcFactory = Activator.CreateInstance(rpcFactoryType, bus, rpcRegistration.Options)
+                                 ?? throw new InvalidOperationException($"Unable to create RPC factory for message type {requestMessageType.Name}.");
+
+                var responderType = typeof(MessageResponder<,>).MakeGenericType(requestMessageType, responseMessageType);
+                var responder = Activator.CreateInstance(responderType, rpcFactory)
+                               ?? throw new InvalidOperationException($"Unable to create message responder for message type {requestMessageType.Name}.");
+
+                var sender = scopedProvider.GetRequiredService<ISender>();
+                var mapper = scopedProvider.GetRequiredService<IMessageMapper>();
+
+                var executorType = typeof(RpcExecutor<,,,>).MakeGenericType(requestMessageType, responseMessageType, commandType, commandResultType);
+                var executor = Activator.CreateInstance(executorType, responder, sender, mapper)
+                               ?? throw new InvalidOperationException($"Unable to create RPC executor for message {requestMessageType.Name} and command {commandType.Name}.");
+
+                var executeMethod = executorType.GetMethod(
+                                        ExecuteMethodName,
+                                        BindingFlags.Instance | BindingFlags.Public,
+                                        binder: null,
+                                        types: new[] { typeof(CancellationToken) },
+                                        modifiers: null)
+                                    ?? throw new InvalidOperationException($"Execute method not found on RPC executor for message {requestMessageType.Name} and command {commandType.Name}.");
+
+                var executeTask = executeMethod.Invoke(executor, new object[] { cancellationToken }) as Task
+                                  ?? throw new InvalidOperationException("RPC executor Execute must return a Task.");
 
                 var trackedTask = executeTask
                     .ContinueWith(t =>

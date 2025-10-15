@@ -6,5 +6,4 @@ public static class Helper
     public static string DefaultExchangeName<T>() => typeof(T).Name.ToLower() + "-exchange";
     public static string DefaultSubQueueName<T>() => typeof(T).Name.ToLower() + "-exchange-queue";
     public static string DefaultRpcQueueName<T>() => typeof(T).Name.ToLower() + "-rpc";
-    public static string DefaultRpcReplyQueueName<T>() => typeof(T).Name.ToLower() + "-rpc-reply";
 }

@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddSingleton(typeof(IMessageReceiver<>), typeof(MessageReceiver<>));
         services.AddSingleton(typeof(ReceiverExecutor<,>));
         services.AddSingleton<ReceiverRegistrationBuilder>();
-        services.AddSingleton(typeof(IQueueFactory<>),typeof(QueueFactory<>));
+        services.AddSingleton(typeof(IQueueFactory<>), typeof(QueueFactory<>));
+        services.AddSingleton<RpcRegistrationBuilder>();
     }
 }

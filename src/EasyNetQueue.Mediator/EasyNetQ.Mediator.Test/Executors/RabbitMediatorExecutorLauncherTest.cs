@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EasyNetQ.Mediator.Consumer.Options;
 using EasyNetQ.Mediator.Executors;
 using EasyNetQ.Mediator.Factories;
 using EasyNetQ.Mediator.Mapping;
@@ -67,7 +68,8 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var launcher = new RabbitMediatorExecutorLauncher(
             builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder());
+            new SubscriberRegistrationBuilder(),
+            new RpcRegistrationBuilder());
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(listenerCts.Token);
@@ -103,6 +105,7 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var exchangeName = $"launcher-sub-single-{Guid.NewGuid():N}";
         var receiverBuilder = new ReceiverRegistrationBuilder();
         var subscriberBuilder = new SubscriberRegistrationBuilder();
+        var rpcBuilder = new RpcRegistrationBuilder();
 
         var mapped = new TaskCompletionSource<TestMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         var dependencySignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -130,7 +133,8 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var launcher = new RabbitMediatorExecutorLauncher(
             receiverBuilder,
             _serviceProvider,
-            subscriberBuilder);
+            subscriberBuilder,
+            rpcBuilder);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(listenerCts.Token);
@@ -161,6 +165,67 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
     }
 
     [Fact]
+    public async Task Should_Process_Single_Rpc_Request()
+    {
+        var rpcQueue = $"launcher-rpc-single-{Guid.NewGuid():N}";
+        var receiverBuilder = new ReceiverRegistrationBuilder();
+        var subscriberBuilder = new SubscriberRegistrationBuilder();
+        var rpcBuilder = new RpcRegistrationBuilder();
+
+        _mapper.Map<TestMessage, TestCommandWithResult>(Arg.Any<TestMessage>())
+            .Returns(ci =>
+            {
+                var message = ci.Arg<TestMessage>();
+                return new TestCommandWithResult(message.Id);
+            });
+
+        _mapper.Map<TestCommandResult, TestResponseMessage>(Arg.Any<TestCommandResult>())
+            .Returns(ci =>
+            {
+                var result = ci.Arg<TestCommandResult>();
+                return new TestResponseMessage { ResultId = result.ResultId };
+            });
+
+        rpcBuilder.Register()
+            .OnCommand<TestCommandWithResult, TestCommandResult>()
+            .OnMessage<TestMessage>()
+            .OnResponseMessage<TestResponseMessage>()
+            .WithOptions(options =>
+            {
+                options.QueueName = rpcQueue;
+                options.AutoDelete = true;
+                options.Durable = false;
+            });
+
+        var launcher = new RabbitMediatorExecutorLauncher(
+            receiverBuilder,
+            _serviceProvider,
+            subscriberBuilder,
+            rpcBuilder);
+
+        using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var runTask = launcher.Run(listenerCts.Token);
+
+        var rpcOptions = new RpcOptions
+        {
+            QueueName = rpcQueue,
+            AutoDelete = true,
+            Durable = false
+        };
+
+        var factory = new RpcFactory<TestMessage, TestResponseMessage>(_fixture.Bus, rpcOptions);
+        var sender = new RpcMessageSender<TestMessage, TestResponseMessage>(factory);
+
+        var response = await sender.RequestAsync(new TestMessage { Id = 42 });
+
+        Assert.NotNull(response);
+        Assert.Equal(10, response.ResultId);
+
+        await listenerCts.CancelAsync();
+        await runTask;
+    }
+
+    [Fact]
     public async Task Run_Should_Remain_Pending_Until_Cancelled()
     {
         var queueName = $"launcher-pending-{Guid.NewGuid():N}";
@@ -182,7 +247,8 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var launcher = new RabbitMediatorExecutorLauncher(
             builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder());
+            new SubscriberRegistrationBuilder(),
+            new RpcRegistrationBuilder());
 
         using var runCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(runCts.Token);
@@ -200,6 +266,7 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var exchangeName = $"launcher-sub-pending-{Guid.NewGuid():N}";
         var receiverBuilder = new ReceiverRegistrationBuilder();
         var subscriberBuilder = new SubscriberRegistrationBuilder();
+        var rpcBuilder = new RpcRegistrationBuilder();
 
         _mapper.Map<TestMessage, TestCommand>(Arg.Any<TestMessage>())
             .Returns(ci => new TestCommand(ci.Arg<TestMessage>().Id));
@@ -218,7 +285,49 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var launcher = new RabbitMediatorExecutorLauncher(
             receiverBuilder,
             _serviceProvider,
-            subscriberBuilder);
+            subscriberBuilder,
+            rpcBuilder);
+
+        using var runCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var runTask = launcher.Run(runCts.Token);
+
+        var completed = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(1)));
+        Assert.NotEqual(runTask, completed);
+
+        runCts.Cancel();
+        await runTask;
+    }
+
+    [Fact]
+    public async Task Rpc_Run_Should_Remain_Pending_Until_Cancelled()
+    {
+        var rpcQueue = $"launcher-rpc-pending-{Guid.NewGuid():N}";
+        var receiverBuilder = new ReceiverRegistrationBuilder();
+        var subscriberBuilder = new SubscriberRegistrationBuilder();
+        var rpcBuilder = new RpcRegistrationBuilder();
+
+        _mapper.Map<TestMessage, TestCommandWithResult>(Arg.Any<TestMessage>())
+            .Returns(ci => new TestCommandWithResult(ci.Arg<TestMessage>().Id));
+
+        _mapper.Map<TestCommandResult, TestResponseMessage>(Arg.Any<TestCommandResult>())
+            .Returns(ci => new TestResponseMessage { ResultId = ci.Arg<TestCommandResult>().ResultId });
+
+        rpcBuilder.Register()
+            .OnCommand<TestCommandWithResult, TestCommandResult>()
+            .OnMessage<TestMessage>()
+            .OnResponseMessage<TestResponseMessage>()
+            .WithOptions(options =>
+            {
+                options.QueueName = rpcQueue;
+                options.AutoDelete = true;
+                options.Durable = false;
+            });
+
+        var launcher = new RabbitMediatorExecutorLauncher(
+            receiverBuilder,
+            _serviceProvider,
+            subscriberBuilder,
+            rpcBuilder);
 
         using var runCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(runCts.Token);
@@ -267,7 +376,8 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var launcher = new RabbitMediatorExecutorLauncher(
             builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder());
+            new SubscriberRegistrationBuilder(),
+            new RpcRegistrationBuilder());
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(totalMessages * 5));
         var runTask = launcher.Run(listenerCts.Token);
@@ -349,7 +459,8 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         var launcher = new RabbitMediatorExecutorLauncher(
             receiverBuilder,
             _serviceProvider,
-            subscriberBuilder);
+            subscriberBuilder,
+            new RpcRegistrationBuilder());
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(totalMessages * 5));
         var runTask = launcher.Run(listenerCts.Token);
@@ -393,13 +504,87 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
     }
 
     [Fact]
+    public async Task Should_Process_Multiple_Rpc_Requests_With_Delays()
+    {
+        var rpcQueue = $"launcher-rpc-multi-{Guid.NewGuid():N}";
+        var receiverBuilder = new ReceiverRegistrationBuilder();
+        var subscriberBuilder = new SubscriberRegistrationBuilder();
+        var rpcBuilder = new RpcRegistrationBuilder();
+
+        const int totalMessages = 4;
+
+        _mapper.Map<TestMessage, TestCommandWithResult>(Arg.Any<TestMessage>()).Returns(ci =>
+        {
+            var message = ci.Arg<TestMessage>();
+            return new TestCommandWithResult(message.Id);
+        });
+
+        _mapper.Map<TestCommandResult, TestResponseMessage>(Arg.Any<TestCommandResult>())
+            .Returns(ci => new TestResponseMessage { ResultId = ci.Arg<TestCommandResult>().ResultId });
+
+        rpcBuilder.Register()
+            .OnCommand<TestCommandWithResult, TestCommandResult>()
+            .OnMessage<TestMessage>()
+            .OnResponseMessage<TestResponseMessage>()
+            .WithOptions(options =>
+            {
+                options.QueueName = rpcQueue;
+                options.AutoDelete = true;
+                options.Durable = false;
+            });
+
+        var launcher = new RabbitMediatorExecutorLauncher(
+            receiverBuilder,
+            _serviceProvider,
+            subscriberBuilder,
+            rpcBuilder);
+
+        using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(totalMessages * 5));
+        var runTask = launcher.Run(listenerCts.Token);
+
+        var rpcOptions = new RpcOptions
+        {
+            QueueName = rpcQueue,
+            AutoDelete = true,
+            Durable = false
+        };
+
+        var factory = new RpcFactory<TestMessage, TestResponseMessage>(_fixture.Bus, rpcOptions);
+        var sender = new RpcMessageSender<TestMessage, TestResponseMessage>(factory);
+
+        var responseTasks = Enumerable.Range(1, totalMessages)
+            .Select(id => sender.RequestAsync(new TestMessage { Id = id }))
+            .ToList();
+
+        var allResponses = Task.WhenAll(responseTasks);
+
+        var completed = await Task.WhenAny(
+            allResponses,
+            Task.Delay(TimeSpan.FromSeconds(totalMessages * 5)));
+
+        if (completed != allResponses)
+        {
+            throw new TimeoutException("Not all RPC responses were processed");
+        }
+
+        foreach (var response in await allResponses)
+        {
+            Assert.Equal(10, response.ResultId);
+        }
+
+        await listenerCts.CancelAsync();
+        await runTask;
+    }
+
+    [Fact]
     public async Task Run_With_No_Registrations_Completes_Immediately()
     {
         var builder = new ReceiverRegistrationBuilder();
         var launcher = new RabbitMediatorExecutorLauncher(
             builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder());
+            new SubscriberRegistrationBuilder(),
+            new RpcRegistrationBuilder());
 
         var runTask = launcher.Run();
 
