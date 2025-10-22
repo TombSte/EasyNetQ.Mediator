@@ -1,8 +1,4 @@
-using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using EasyNetQ;
 using EasyNetQ.Mediator.Consumer.Implementations;
 using EasyNetQ.Mediator.Factories;
 using EasyNetQ.Mediator.Mapping;
@@ -15,10 +11,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace EasyNetQ.Mediator.Executors;
 
 public class RabbitMediatorExecutorLauncher(
-    ReceiverRegistrationBuilder receiverBuilder, 
     IServiceProvider serviceProvider,
-    SubscriberRegistrationBuilder subscriberBuilder,
-    RpcRegistrationBuilder rpcBuilder) : IRabbitMediatorExecutorLauncher
+    IEnumerable<ReceiverRegistrationBuilder> receiverBuilders, 
+    IEnumerable<SubscriberRegistrationBuilder> subscriberBuilders,
+    IEnumerable<RpcRegistrationBuilder> rpcBuilders) : IRabbitMediatorExecutorLauncher
 {
     private const string ExecuteMethodName = "Execute";
 
@@ -26,17 +22,17 @@ public class RabbitMediatorExecutorLauncher(
     {
         var tasks = new List<Task>();
 
-        if (receiverBuilder.Registrations.Count > 0)
+        if (receiverBuilders.Any() && receiverBuilders.SelectMany(x => x.Registrations).Any())
         {
             tasks.AddRange(RunReceivers(cancellationToken));
         }
 
-        if (subscriberBuilder.Registrations.Count > 0)
+        if (subscriberBuilders.Any() && subscriberBuilders.SelectMany(x => x.Registrations).Any())
         {
             tasks.AddRange(RunSubscribers(cancellationToken));
         }
 
-        if (rpcBuilder.Registrations.Count > 0)
+        if (rpcBuilders.Any() && rpcBuilders.SelectMany(x => x.Registrations).Any())
         {
             tasks.AddRange(RunResponders(cancellationToken));
         }
@@ -51,8 +47,9 @@ public class RabbitMediatorExecutorLauncher(
 
     private List<Task> RunReceivers(CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>(receiverBuilder.Registrations.Count);
+        var tasks = new List<Task>(receiverBuilders.SelectMany(x => x.Registrations).Count());
 
+        foreach (var receiverBuilder in receiverBuilders)
         foreach (var receiverRegistration in receiverBuilder.Registrations)
         {
             var messageType = receiverRegistration.MessageType 
@@ -89,11 +86,11 @@ public class RabbitMediatorExecutorLauncher(
                                         ExecuteMethodName,
                                         BindingFlags.Instance | BindingFlags.Public,
                                         binder: null,
-                                        types: new[] { typeof(CancellationToken) },
+                                        types: [typeof(CancellationToken)],
                                         modifiers: null)
                                     ?? throw new InvalidOperationException($"Execute method not found on executor for message {messageType.Name} and command {commandType.Name}.");
 
-                var executeTask = executeMethod.Invoke(executor, new object[] { cancellationToken }) as Task
+                var executeTask = executeMethod.Invoke(executor, [cancellationToken]) as Task
                                   ?? throw new InvalidOperationException("Receiver executor Execute must return a Task.");
 
                 var trackedTask = executeTask
@@ -118,8 +115,9 @@ public class RabbitMediatorExecutorLauncher(
 
     private List<Task> RunSubscribers(CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>(subscriberBuilder.Registrations.Count);
+        var tasks = new List<Task>(subscriberBuilders.SelectMany(x => x.Registrations).Count());
 
+        foreach (var subscriberBuilder in subscriberBuilders)
         foreach (var subscriberRegistration in subscriberBuilder.Registrations)
         {
             var messageType = subscriberRegistration.MessageType
@@ -156,11 +154,11 @@ public class RabbitMediatorExecutorLauncher(
                                         ExecuteMethodName,
                                         BindingFlags.Instance | BindingFlags.Public,
                                         binder: null,
-                                        types: new[] { typeof(CancellationToken) },
+                                        types: [typeof(CancellationToken)],
                                         modifiers: null)
                                     ?? throw new InvalidOperationException($"Execute method not found on subscriber executor for message {messageType.Name} and command {commandType.Name}.");
 
-                var executeTask = executeMethod.Invoke(executor, new object[] { cancellationToken }) as Task
+                var executeTask = executeMethod.Invoke(executor, [cancellationToken]) as Task
                                   ?? throw new InvalidOperationException("Subscriber executor Execute must return a Task.");
 
                 var trackedTask = executeTask
@@ -185,8 +183,9 @@ public class RabbitMediatorExecutorLauncher(
 
     private List<Task> RunResponders(CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>(rpcBuilder.Registrations.Count);
+        var tasks = new List<Task>(rpcBuilders.SelectMany(x => x.Registrations).Count());
 
+        foreach (var rpcBuilder in rpcBuilders)
         foreach (var rpcRegistration in rpcBuilder.Registrations)
         {
             var requestMessageType = rpcRegistration.MessageType
@@ -229,11 +228,11 @@ public class RabbitMediatorExecutorLauncher(
                                         ExecuteMethodName,
                                         BindingFlags.Instance | BindingFlags.Public,
                                         binder: null,
-                                        types: new[] { typeof(CancellationToken) },
+                                        types: [typeof(CancellationToken)],
                                         modifiers: null)
                                     ?? throw new InvalidOperationException($"Execute method not found on RPC executor for message {requestMessageType.Name} and command {commandType.Name}.");
 
-                var executeTask = executeMethod.Invoke(executor, new object[] { cancellationToken }) as Task
+                var executeTask = executeMethod.Invoke(executor, [cancellationToken]) as Task
                                   ?? throw new InvalidOperationException("RPC executor Execute must return a Task.");
 
                 var trackedTask = executeTask

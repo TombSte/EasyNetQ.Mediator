@@ -61,10 +61,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder(),
-            new RpcRegistrationBuilder());
+            [builder],
+            [new SubscriberRegistrationBuilder()],
+            [new RpcRegistrationBuilder()]);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(listenerCts.Token);
@@ -82,7 +82,7 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
         await sender.SendAsync(new TestMessage { Id = 1 });
 
         var processingTask = Task.WhenAll(mapped.Task, dependencySignal.Task);
-        var completed = await Task.WhenAny(processingTask, Task.Delay(TimeSpan.FromSeconds(30)));
+        var completed = await Task.WhenAny(processingTask, Task.Delay(TimeSpan.FromSeconds(30), listenerCts.Token));
         if (completed != processingTask)
         {
             throw new TimeoutException("Message was not processed");
@@ -126,10 +126,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            receiverBuilder,
             _serviceProvider,
-            subscriberBuilder,
-            rpcBuilder);
+            [receiverBuilder],
+            [subscriberBuilder],
+            [rpcBuilder]);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(listenerCts.Token);
@@ -193,10 +193,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            receiverBuilder,
             _serviceProvider,
-            subscriberBuilder,
-            rpcBuilder);
+            [receiverBuilder],
+            [subscriberBuilder],
+            [rpcBuilder]);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(listenerCts.Token);
@@ -240,10 +240,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder(),
-            new RpcRegistrationBuilder());
+            [builder],
+            [new SubscriberRegistrationBuilder()],
+            [new RpcRegistrationBuilder()]);
 
         using var runCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(runCts.Token);
@@ -278,10 +278,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            receiverBuilder,
             _serviceProvider,
-            subscriberBuilder,
-            rpcBuilder);
+            [receiverBuilder],
+            [subscriberBuilder],
+            [rpcBuilder]);
 
         using var runCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(runCts.Token);
@@ -319,10 +319,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            receiverBuilder,
             _serviceProvider,
-            subscriberBuilder,
-            rpcBuilder);
+            [receiverBuilder],
+            [subscriberBuilder],
+            [rpcBuilder]);
 
         using var runCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var runTask = launcher.Run(runCts.Token);
@@ -369,10 +369,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder(),
-            new RpcRegistrationBuilder());
+            [builder],
+            [new SubscriberRegistrationBuilder()],
+            [new RpcRegistrationBuilder()]);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(totalMessages * 5));
         var runTask = launcher.Run(listenerCts.Token);
@@ -452,10 +452,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            receiverBuilder,
             _serviceProvider,
-            subscriberBuilder,
-            new RpcRegistrationBuilder());
+            [receiverBuilder],
+            [subscriberBuilder],
+            [new RpcRegistrationBuilder()]);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(totalMessages * 5));
         var runTask = launcher.Run(listenerCts.Token);
@@ -529,10 +529,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
             });
 
         var launcher = new RabbitMediatorExecutorLauncher(
-            receiverBuilder,
             _serviceProvider,
-            subscriberBuilder,
-            rpcBuilder);
+            [receiverBuilder],
+            [subscriberBuilder],
+            [rpcBuilder]);
 
         using var listenerCts = new CancellationTokenSource(TimeSpan.FromSeconds(totalMessages * 5));
         var runTask = launcher.Run(listenerCts.Token);
@@ -576,10 +576,10 @@ public class RabbitMediatorExecutorLauncherTest : IClassFixture<IntegrationTestF
     {
         var builder = new ReceiverRegistrationBuilder();
         var launcher = new RabbitMediatorExecutorLauncher(
-            builder,
             _serviceProvider,
-            new SubscriberRegistrationBuilder(),
-            new RpcRegistrationBuilder());
+            [builder],
+            [new SubscriberRegistrationBuilder()],
+            [new RpcRegistrationBuilder()]);
 
         var runTask = launcher.Run();
 
