@@ -2,9 +2,9 @@ using EasyNetQ.Mediator.Consumer.Options;
 
 namespace EasyNetQ.Mediator.Registrations;
 
-public class SubscriberRegistrationBuilder : BaseRegistrationBuilder<SubscriberRegistration>
+public abstract class SubscriberRegistrationBuilder : BaseRegistrationBuilder<SubscriberRegistration>
 {
-    public SubscriberRegistration Subscribe()
+    protected SubscriberRegistration Subscribe()
     {
         var registration = new SubscriberRegistration();
         Registrations.Add(registration);

@@ -14,20 +14,17 @@ public static class DependencyInjection
     {
         services.AddSingleton(typeof(IMessageReceiver<>), typeof(MessageReceiver<>));
         services.AddSingleton(typeof(ReceiverExecutor<,>));
-        services.AddSingleton<ReceiverRegistrationBuilder>();
         services.AddSingleton(typeof(IQueueFactory<>), typeof(QueueFactory<>));
         services.AddSingleton<QueueOptions>();
 
         services.AddSingleton(typeof(ISubscriberFactory<>), typeof(SubscriberFactory<>));
         services.AddSingleton(typeof(IMessageSubscriber<>), typeof(MessageSubscriber<>));
         services.AddSingleton(typeof(SubscriberExecutor<,>));
-        services.AddSingleton<SubscriberRegistrationBuilder>();
         services.AddSingleton<SubscriberOptions>();
 
         services.AddSingleton(typeof(IRpcFactory<,>), typeof(RpcFactory<,>));
         services.AddSingleton(typeof(IMessageResponder<,>), typeof(MessageResponder<,>));
         services.AddSingleton(typeof(RpcExecutor<,,,>));
-        services.AddSingleton<RpcRegistrationBuilder>();
         services.AddSingleton<RpcOptions>();
         services.AddSingleton<IRabbitMediatorExecutorLauncher, RabbitMediatorExecutorLauncher>();
     }

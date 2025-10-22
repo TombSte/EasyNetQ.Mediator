@@ -8,7 +8,6 @@ using EasyNetQ.Mediator.Test.Helpers;
 using EasyNetQ.Mediator.Test.Integrations;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using NSubstitute;
 
 namespace EasyNetQ.Mediator.Test;
 
@@ -21,6 +20,9 @@ public class DependencyInjectionTest : IClassFixture<IntegrationTestFixture>
         
         serviceCollection.AddEasyNetQMediator();
         serviceCollection.AddImplicitDependencies();
+        serviceCollection.AddSingleton<ReceiverRegistrationBuilder, MockedReceiverRegistrationBuilder>();
+        serviceCollection.AddSingleton<SubscriberRegistrationBuilder, MockedSubscriberRegistrationBuilder>();
+        serviceCollection.AddSingleton<RpcRegistrationBuilder, MockedRpcRegistrationBuilder>();
         _serviceProvider = serviceCollection.BuildServiceProvider();
     }
 
@@ -41,8 +43,9 @@ public class DependencyInjectionTest : IClassFixture<IntegrationTestFixture>
     [Fact]
     public void ReceiverRegistrationBuilder_IsResolved()
     {
-        var builder = _serviceProvider.GetRequiredService<ReceiverRegistrationBuilder>();
-        builder.Should().NotBeNull();
+        var builders = _serviceProvider.GetServices<ReceiverRegistrationBuilder>();
+        builders.Should().NotBeNull();
+        builders.Should().HaveCount(1);
     }
 
     [Fact]

@@ -1,14 +1,12 @@
-using System;
-using System;
 using EasyNetQ.Mediator.Consumer.Options;
 using EasyNetQ.Mediator.Message;
 using MediatR;
 
 namespace EasyNetQ.Mediator.Registrations;
 
-public class RpcRegistrationBuilder : BaseRegistrationBuilder<RpcRegistration>
+public abstract class RpcRegistrationBuilder : BaseRegistrationBuilder<RpcRegistration>
 {
-    public RpcRegistration Register()
+    protected RpcRegistration Register()
     {
         var registration = new RpcRegistration();
         Registrations.Add(registration);

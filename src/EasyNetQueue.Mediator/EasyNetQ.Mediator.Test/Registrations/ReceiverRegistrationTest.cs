@@ -6,18 +6,23 @@ namespace EasyNetQ.Mediator.Test.Registrations;
 
 public class ReceiverRegistrationTest
 {
+    public class MockedReceiverRegistrationBuilder : ReceiverRegistrationBuilder
+    {
+        public MockedReceiverRegistrationBuilder()
+        {
+            Register()
+                .OnMessage<TestMessage>()
+                .OnCommand<TestCommand>()
+                .WithOptions(opt =>
+                {
+                    opt.Exclusive = true;
+                });
+        }
+    }
     [Fact]
     public void Registration_Succss()
     {
-        ReceiverRegistrationBuilder builder = new ReceiverRegistrationBuilder();
-        builder
-            .Register()
-            .OnMessage<TestMessage>()
-            .OnCommand<TestCommand>()
-            .WithOptions(opt =>
-            {
-                opt.Exclusive = true;
-            });
+        ReceiverRegistrationBuilder builder = new MockedReceiverRegistrationBuilder();
 
         builder.Registrations.Count.Should().Be(1);
         builder.Registrations[0].Should().BeOfType<ReceiverRegistration>();
