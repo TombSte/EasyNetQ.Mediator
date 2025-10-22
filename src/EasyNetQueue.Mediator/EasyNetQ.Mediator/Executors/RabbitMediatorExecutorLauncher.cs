@@ -18,7 +18,7 @@ public class RabbitMediatorExecutorLauncher(
     ReceiverRegistrationBuilder receiverBuilder, 
     IServiceProvider serviceProvider,
     SubscriberRegistrationBuilder subscriberBuilder,
-    RpcRegistrationBuilder rpcBuilder)
+    RpcRegistrationBuilder rpcBuilder) : IRabbitMediatorExecutorLauncher
 {
     private const string ExecuteMethodName = "Execute";
 
@@ -148,7 +148,7 @@ public class RabbitMediatorExecutorLauncher(
                 var sender = scopedProvider.GetRequiredService<ISender>();
                 var mapper = scopedProvider.GetRequiredService<IMessageMapper>();
 
-                var executorType = typeof(SubcriberExecutor<,>).MakeGenericType(messageType, commandType);
+                var executorType = typeof(SubscriberExecutor<,>).MakeGenericType(messageType, commandType);
                 var executor = Activator.CreateInstance(executorType, messageSubscriber, sender, mapper)
                                ?? throw new InvalidOperationException($"Unable to create subscriber executor for message {messageType.Name} and command {commandType.Name}.");
 

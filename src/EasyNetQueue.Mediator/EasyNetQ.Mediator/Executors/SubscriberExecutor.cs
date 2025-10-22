@@ -5,7 +5,7 @@ using MediatR;
 
 namespace EasyNetQ.Mediator.Executors;
 
-public class SubcriberExecutor<TMessage, TCommand>(
+public class SubscriberExecutor<TMessage, TCommand>(
     IMessageSubscriber<TMessage> receiver,
     ISender sender,
     IMessageMapper mapper) where TMessage : BaseMessage

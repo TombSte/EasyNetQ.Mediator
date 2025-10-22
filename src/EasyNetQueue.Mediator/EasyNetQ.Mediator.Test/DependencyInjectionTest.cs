@@ -44,4 +44,32 @@ public class DependencyInjectionTest : IClassFixture<IntegrationTestFixture>
         var builder = _serviceProvider.GetRequiredService<ReceiverRegistrationBuilder>();
         builder.Should().NotBeNull();
     }
+
+    [Fact]
+    public void SubscriberExecutor_IsResolved()
+    {
+        var executor = _serviceProvider.GetRequiredService<SubscriberExecutor<TestMessage, TestCommand>>();
+        executor.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SubscriberRegistrationBuilder_IsResolved()
+    {
+        var builder = _serviceProvider.GetRequiredService<SubscriberRegistrationBuilder>();
+        builder.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void RpcExecutor_IsResolved()
+    {
+        var executor = _serviceProvider.GetRequiredService<RpcExecutor<TestMessage, TestResponseMessage, TestCommandWithResult, TestCommandResult>>();
+        executor.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void RpcRegistrationBuilder_IsResolved()
+    {
+        var builder = _serviceProvider.GetRequiredService<RpcRegistrationBuilder>();
+        builder.Should().NotBeNull();
+    }
 }

@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using EasyNetQ.Mediator.Consumer.Options;
 using EasyNetQ.Mediator.Executors;
 using EasyNetQ.Mediator.Factories;

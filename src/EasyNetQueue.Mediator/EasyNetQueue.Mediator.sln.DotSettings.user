@@ -9,6 +9,9 @@
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AXunitTestClassRunner_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003FLibrary_003FApplication_0020Support_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003Ffa89f150e61fcb98d99f99d4228756e848229b425ae861ae7c6ab45b33bb35_003FXunitTestClassRunner_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/Environment/Highlighting/HighlightingSourceSnapshotLocation/@EntryValue">/Users/stefanotomba/Library/Caches/JetBrains/Rider2024.3/resharper-host/temp/Rider/vAny/CoverageData/_EasyNetQueue.Mediator.1058696750/Snapshot/snapshot.utdcvr</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=38c901ec_002D9c01_002D4d8c_002Db88e_002Df55357f84f32/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="ShouldSendAndReceiveAMessage" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
-  &lt;Project Location="/Users/stefanotomba/Github/EasyNetQ.Mediator/src/EasyNetQueue.Mediator/EasyNetQ.Mediator.Test" Presentation="&amp;lt;EasyNetQ.Mediator.Test&amp;gt;" /&gt;
+  &lt;Or&gt;
+    &lt;Project Location="/Users/stefanotomba/Github/EasyNetQ.Mediator/src/EasyNetQueue.Mediator/EasyNetQ.Mediator.Test" Presentation="&amp;lt;EasyNetQ.Mediator.Test&amp;gt;" /&gt;
+    &lt;ProjectFile&gt;ED16B9F4-22BC-464F-97A5-02E03629A9F7/f:EasyNetQMediatorRunnerTest.cs&lt;/ProjectFile&gt;
+  &lt;/Or&gt;
 &lt;/SessionState&gt;</s:String>
 	</wpf:ResourceDictionary>
