@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using EasyNetQ.Mediator.Consumer.Implementations;
 using EasyNetQ.Mediator.Factories;
@@ -12,27 +13,31 @@ namespace EasyNetQ.Mediator.Executors;
 
 public class RabbitMediatorExecutorLauncher(
     IServiceProvider serviceProvider,
-    IEnumerable<ReceiverRegistrationBuilder> receiverBuilders, 
-    IEnumerable<SubscriberRegistrationBuilder> subscriberBuilders,
-    IEnumerable<RpcRegistrationBuilder> rpcBuilders) : IRabbitMediatorExecutorLauncher
+    IEnumerable<ReceiverRegistrationBuilder>? receiverBuilders,
+    IEnumerable<SubscriberRegistrationBuilder>? subscriberBuilders,
+    IEnumerable<RpcRegistrationBuilder>? rpcBuilders) : IRabbitMediatorExecutorLauncher
 {
     private const string ExecuteMethodName = "Execute";
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly IEnumerable<ReceiverRegistrationBuilder> _receiverBuilders = receiverBuilders ?? Enumerable.Empty<ReceiverRegistrationBuilder>();
+    private readonly IEnumerable<SubscriberRegistrationBuilder> _subscriberBuilders = subscriberBuilders ?? Enumerable.Empty<SubscriberRegistrationBuilder>();
+    private readonly IEnumerable<RpcRegistrationBuilder> _rpcBuilders = rpcBuilders ?? Enumerable.Empty<RpcRegistrationBuilder>();
 
     public Task Run(CancellationToken cancellationToken = default)
     {
         var tasks = new List<Task>();
 
-        if (receiverBuilders.Any() && receiverBuilders.SelectMany(x => x.Registrations).Any())
+        if (_receiverBuilders.Any() && _receiverBuilders.SelectMany(x => x.Registrations).Any())
         {
             tasks.AddRange(RunReceivers(cancellationToken));
         }
 
-        if (subscriberBuilders.Any() && subscriberBuilders.SelectMany(x => x.Registrations).Any())
+        if (_subscriberBuilders.Any() && _subscriberBuilders.SelectMany(x => x.Registrations).Any())
         {
             tasks.AddRange(RunSubscribers(cancellationToken));
         }
 
-        if (rpcBuilders.Any() && rpcBuilders.SelectMany(x => x.Registrations).Any())
+        if (_rpcBuilders.Any() && _rpcBuilders.SelectMany(x => x.Registrations).Any())
         {
             tasks.AddRange(RunResponders(cancellationToken));
         }
@@ -47,9 +52,9 @@ public class RabbitMediatorExecutorLauncher(
 
     private List<Task> RunReceivers(CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>(receiverBuilders.SelectMany(x => x.Registrations).Count());
+        var tasks = new List<Task>(_receiverBuilders.SelectMany(x => x.Registrations).Count());
 
-        foreach (var receiverBuilder in receiverBuilders)
+        foreach (var receiverBuilder in _receiverBuilders)
         foreach (var receiverRegistration in receiverBuilder.Registrations)
         {
             var messageType = receiverRegistration.MessageType 
@@ -57,7 +62,7 @@ public class RabbitMediatorExecutorLauncher(
             var commandType = receiverRegistration.CommandType 
                               ?? throw new InvalidOperationException("Receiver registration missing CommandType.");
 
-            var scope = serviceProvider.CreateScope();
+            var scope = _serviceProvider.CreateScope();
             var scopedProvider = scope.ServiceProvider;
 
             try
@@ -115,9 +120,9 @@ public class RabbitMediatorExecutorLauncher(
 
     private List<Task> RunSubscribers(CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>(subscriberBuilders.SelectMany(x => x.Registrations).Count());
+        var tasks = new List<Task>(_subscriberBuilders.SelectMany(x => x.Registrations).Count());
 
-        foreach (var subscriberBuilder in subscriberBuilders)
+        foreach (var subscriberBuilder in _subscriberBuilders)
         foreach (var subscriberRegistration in subscriberBuilder.Registrations)
         {
             var messageType = subscriberRegistration.MessageType
@@ -125,7 +130,7 @@ public class RabbitMediatorExecutorLauncher(
             var commandType = subscriberRegistration.CommandType
                               ?? throw new InvalidOperationException("Subscriber registration missing CommandType.");
 
-            var scope = serviceProvider.CreateScope();
+            var scope = _serviceProvider.CreateScope();
             var scopedProvider = scope.ServiceProvider;
 
             try
@@ -183,9 +188,9 @@ public class RabbitMediatorExecutorLauncher(
 
     private List<Task> RunResponders(CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>(rpcBuilders.SelectMany(x => x.Registrations).Count());
+        var tasks = new List<Task>(_rpcBuilders.SelectMany(x => x.Registrations).Count());
 
-        foreach (var rpcBuilder in rpcBuilders)
+        foreach (var rpcBuilder in _rpcBuilders)
         foreach (var rpcRegistration in rpcBuilder.Registrations)
         {
             var requestMessageType = rpcRegistration.MessageType
@@ -202,7 +207,7 @@ public class RabbitMediatorExecutorLauncher(
             rpcRegistration.Options.CommandType ??= commandType;
             rpcRegistration.Options.CommandResultType ??= commandResultType;
 
-            var scope = serviceProvider.CreateScope();
+            var scope = _serviceProvider.CreateScope();
             var scopedProvider = scope.ServiceProvider;
 
             try
